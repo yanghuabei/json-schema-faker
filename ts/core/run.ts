@@ -5,6 +5,48 @@ import traverse = require('./traverse');
 import random = require('./random');
 import utils = require('./utils');
 
+function mixRefs($, sub, seen, reduce): void {
+  if (Array.isArray(sub.allOf)) {
+    var schemas: JsonSchema[] = sub.allOf;
+
+    delete sub.allOf;
+
+    // this is the only case where all sub-schemas
+    // must be resolved before any merge
+    schemas.forEach(function(schema: JsonSchema) {
+      utils.merge(sub, reduce(schema));
+    });
+  }
+
+  if (Array.isArray(sub.oneOf || sub.anyOf)) {
+    var mix = sub.oneOf || sub.anyOf;
+
+    delete sub.anyOf;
+    delete sub.oneOf;
+
+    utils.merge(sub, random.pick(mix));
+  }
+
+  if (typeof sub.$ref === 'string') {
+    var id = sub.$ref;
+
+    delete sub.$ref;
+
+    if (!seen[id]) {
+      // TODO: this should be configurable
+      seen[id] = random.number(1, 5);
+    }
+
+    seen[id] -= 1;
+
+    if (seen[sub.$ref] <= 0) {
+      delete sub.$ref;
+    }
+
+    utils.merge(sub, $.util.findByRef(id, $.refs));
+  }
+}
+
 function isKey(prop: string): boolean {
   return prop === 'enum' || prop === 'required' || prop === 'definitions';
 }
@@ -17,49 +59,9 @@ function run(schema, refs?, ex?) {
     var seen = {};
 
     return traverse($(schema, refs, ex), [], function reduce(sub) {
-      if (seen[sub.$ref] <= 0) {
-        delete sub.$ref;
-        delete sub.oneOf;
-        delete sub.anyOf;
-        delete sub.allOf;
-        return sub;
-      }
-
-      if (typeof sub.$ref === 'string') {
-        var id = sub.$ref;
-
-        delete sub.$ref;
-
-        if (!seen[id]) {
-          // TODO: this should be configurable
-          seen[id] = random.number(1, 5);
-        }
-
-        seen[id] -= 1;
-
-        utils.merge(sub, $.util.findByRef(id, $.refs));
-      }
-
-      if (Array.isArray(sub.allOf)) {
-        var schemas: JsonSchema[] = sub.allOf;
-
-        delete sub.allOf;
-
-        // this is the only case where all sub-schemas
-        // must be resolved before any merge
-        schemas.forEach(function(schema: JsonSchema) {
-          utils.merge(sub, reduce(schema));
-        });
-      }
-
-      if (Array.isArray(sub.oneOf || sub.anyOf)) {
-        var mix = sub.oneOf || sub.anyOf;
-
-        delete sub.anyOf;
-        delete sub.oneOf;
-
-        utils.merge(sub, random.pick(mix));
-      }
+      do {
+        mixRefs($, sub, seen, reduce);
+      } while (sub.$ref || sub.oneOf || sub.anyOf || sub.allOf);
 
       for (var prop in sub) {
         if ((Array.isArray(sub[prop]) || typeof sub[prop] === 'object') && !isKey(prop)) {
