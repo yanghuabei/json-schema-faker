@@ -72,6 +72,10 @@ global.customMatchers =
         fail.push result.map((e) -> e.desc or e.message).join('\n') or
           "Invalid schema #{JSON.stringify actual}"
 
+      if fail.length
+        fail.push "---> ACTUAL: #{JSON.stringify(actual, null, 2)}"
+        fail.push "---> EXPECTED: #{JSON.stringify(actual, null, 2)}"
+
       pass: !fail.length
       message: fail.join('\n') if fail.length
 

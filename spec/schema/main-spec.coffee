@@ -29,13 +29,15 @@ tryTest = (test, refs, schema) ->
 
   if typeof test.throws is 'string'
     if typeof error isnt 'string'
-      throw new Error """
-        THIS SHOULD NOT HAPPEN --- #{error}
+      expect(->
+        throw new Error """
+          THIS SHOULD NOT HAPPEN --- #{error}
 
-        #{JSON.stringify(schema, null, 2)}
+          #{JSON.stringify(schema, null, 2)}
 
-        #{JSON.stringify(sample, null, 2)}
-      """
+          #{JSON.stringify(sample, null, 2)}
+        """
+      ).not.toThrow()
 
     expect(error).toMatch new RegExp(test.throws, 'i')
 
@@ -44,16 +46,7 @@ tryTest = (test, refs, schema) ->
     expect(sample).toHaveNonEmptyProps()
 
   if test.valid
-    try
-      expect(sample).toHaveSchema [schema, refs]
-    catch e
-      throw new Error """
-        #{suite.description} (#{e})
-
-        #{JSON.stringify(sample, null, 2)}
-
-        #{JSON.stringify(schema, null, 2)}
-      """
+    expect(sample).toHaveSchema [schema, refs]
 
   if test.equal
     expect(sample).toEqual test.equal
