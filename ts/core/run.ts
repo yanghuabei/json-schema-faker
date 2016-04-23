@@ -5,7 +5,7 @@ import traverse = require('./traverse');
 import random = require('./random');
 import utils = require('./utils');
 
-function mixRefs($, sub, seen, reduce): void {
+function mixRefs($, sub, reduce): void {
   if (Array.isArray(sub.allOf)) {
     var schemas: JsonSchema[] = sub.allOf;
 
@@ -32,17 +32,6 @@ function mixRefs($, sub, seen, reduce): void {
 
     delete sub.$ref;
 
-    if (!seen[id]) {
-      // TODO: this should be configurable
-      seen[id] = random.number(1, 5);
-    }
-
-    seen[id] -= 1;
-
-    if (seen[sub.$ref] <= 0) {
-      delete sub.$ref;
-    }
-
     utils.merge(sub, $.util.findByRef(id, $.refs));
   }
 }
@@ -56,16 +45,27 @@ function run(schema, refs?, ex?) {
   var $ = deref();
 
   try {
-    var seen = {};
-
-    return traverse($(schema, refs, ex), [], function reduce(sub) {
+    return traverse($(schema, refs, ex), [], function reduce(sub, maxDepth) {
       do {
-        mixRefs($, sub, seen, reduce);
+        if (typeof maxDepth === 'undefined') {
+          maxDepth = random.number(2, 5);
+        }
+
+        if (maxDepth <= 0) {
+          delete sub.$ref;
+          delete sub.oneOf;
+          delete sub.anyOf;
+          delete sub.allOf;
+          return sub;
+        }
+
+        maxDepth -= 1;
+        mixRefs($, sub, reduce);
       } while (sub.$ref || sub.oneOf || sub.anyOf || sub.allOf);
 
       for (var prop in sub) {
         if ((Array.isArray(sub[prop]) || typeof sub[prop] === 'object') && !isKey(prop)) {
-          sub[prop] = reduce(sub[prop]);
+          sub[prop] = reduce(sub[prop], maxDepth);
         }
       }
 

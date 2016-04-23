@@ -21,7 +21,7 @@
           },
           "required": ["foo"]
         },
-        "nonEmpty": true
+        "dump": true
       }
     ]
   }
