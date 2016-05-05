@@ -37,7 +37,7 @@ function mixRefs($, sub, reduce): void {
 }
 
 function isKey(prop: string): boolean {
-  return prop === 'enum' || prop === 'required' || prop === 'definitions';
+  return prop === 'enum' || prop === 'default' || prop === 'required' || prop === 'definitions';
 }
 
 // TODO provide types
@@ -64,8 +64,8 @@ function run(schema, refs?, ex?) {
       } while (sub.$ref || sub.oneOf || sub.anyOf || sub.allOf);
 
       for (var prop in sub) {
-        if ((Array.isArray(sub[prop]) || typeof sub[prop] === 'object') && !isKey(prop)) {
-          sub[prop] = reduce(sub[prop], maxDepth);
+        if ((Array.isArray(sub[prop]) || typeof sub[prop] === 'object') && sub[prop] !== null && !isKey(prop)) {
+          sub[prop] = reduce(sub[prop]);
         }
       }
 
